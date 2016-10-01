@@ -1,0 +1,11 @@
+include rbljp.inc
+include japan.inc
+allow_user_rules 1
+include isp.inc
+include whitelist.inc
+include blacklist.inc
+include law.inc
+include body-ja.inc
+include body-ja-human.inc
+include like.inc
+
