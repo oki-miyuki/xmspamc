@@ -1,1 +1,1 @@
-"Path_to_spamc\spamc.exe"	"@@FILE"	"TEMPDIR"
+"Path_to_spamc\spamc.exe"	"@@FILE"	"Path_to_tempdir"	"-D"	"2000.0"

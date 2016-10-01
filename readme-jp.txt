@@ -1,46 +1,70 @@
+■はじめに
+  このドキュメントは、2005/08/24 に書かれました。
+ここに書かれてある内容は、古くなっている可能性があります。
+
+  サポートはしませんが、何かありましたら blade2001jp@ybb.ne.jp まで
+連絡ください。公開は http://www.hunes.co.jp/oki/xmail_spamc/ で行っています。
+
+xmspamc は、SpamAssassin 3.0.2 の spamc.c をベースに改造されています。
+xmail は、バージョン 1.2.0 以降で、SpamAssassin 3.0.2, 3.0.3, 3.0.4 
+での動作を確認しています。
+
+  windows 環境以外でも、コンパイルすれば xmail 用のフィルタとして
+利用できると思いますが、xmspamc.c 内で パスを分解するのに _splitpath
+というランタイム関数を利用しており、これは他のプラットフォームとは
+互換性がないかもしれません。ビルドする場合は、SpamAssassin の spamc.c 
+の代わりに xmspamc.c を利用するように makefile を書き換えてビルドを
+行ってください。
+
 ■重要事項
 
   自己の責任において使用してください。
 
-Perl は、C:\usr\Perl にインストールされているものとします。
+Perl は、C:\usr\Perl にインストールされているものとして spamd.bat を作成しています。
 
-SpamAssassin の設定において C:\usr\Perl\site\etc\mail\spamassassin\local.cf 
-において
+SpamAssassin の設定において C:\usr\Perl\site\etc\mail\spamassassin\local.cf において 
+report_safe = 0 
+という行の設定は、もはや不要になりました。
 
-report_safe 0
+OutlookExpress 等のメールヘッダの詳細な項目に応じたフィルタ処理ができないものに
+対しては、local.cf において、
+rewrite_header Subject *****SPAM*****
+という行を追加すれば、件名でフィルタ処理ができるようになります。
 
-というように・・・必ず・・・必ず・・・必ず・・・これを 0 に設定して下さい
-また 行先頭の # は コメント・・・コメント・・・コメント・・・ですので、
-絶対に！ report_safe 0 としてください。
+  spamassassin.tab 内で、オプションを指定する場合の注意点として、"-D 15.0" という
+ 書き方をするとエラーになります。"-D"<tab>"15.0" というようにスペース部分は分離して
+ 指定してください。
 
-  そうしないと、Spam と判定された場合の挙動は未定になり、メールが
-無条件に削除されてしまいます！！！
+  XMailのフィルタ用 tab ファイルは、区切り文字に <tab> （タブ文字）を使用するので、
+スペースを使うとフィルタが正しく動作しない点に注意してください。
+
+  添付の Spamd.bat 内の記述にて、SET RES_NAMESERVERS=[dns ip address] (例: 192.168.1.1)
+の記述を入れて、ocal.cf に dns_available yes の記述を行うと 確実にRBL のチェックを行って
+くれるようです。
+
 
 ■変更履歴
 
+ver 0.11
  2005/01/13 FIX -b オプションを指定しなくても、-b オプション扱いになっていた
+ver 0.12
  2005/01/23 FIX spamd.bat 内のPerlへのパスが D:\Perl とデタラメだったのを修正
-
-■
-  このドキュメントは、2005/01/11 に書かれました。
-ここに書かれてある内容は、古くなっている可能性があります。
-
-  サポートはしませんが、何かありましたら blade2001jp@ybb.ne.jp まで
-連絡ください。
-
-XMail-1.20
-SpamAssassin 3.0.2
-
-の環境において、spamc.exe を xmail のフィルタとして使用
-できるように xmspamc.exe として変更を加えたものです。
-中身は、xmspamc.c で、_splitpath という関数を利用しているので、
-Windows 以外の環境では、xmspamc.c を修正する必要があります。
-ビルドする場合は、spamc.c の代わりに xmspamc.c を使うように
-してください。
+ver 0.2
+ 2005/08/20 FIX spamd.bat 内のコメントミスを修正（起動時のエラーメッセージが減った）
+ 2005/08/20 FIX XMail フィルタ用の返却値を 5 から 4 に修正（スプールしないように）
+ 2005/08/20 FIX spamassassin の local.cf で report_safe = 0 と指定しなくても良い
+              ように修正
+ 2005/08/24 FIX 変更されたスプール・メールの最終２バイトをチェックし、LF のみの
+              改行を CR+LF の組の改行に書き換え処理を追加（そうしないと、
+              メーラがタイムアウトを引き起こす現象が発生したため）
+ 2005/08/26 Release 安定して稼動できそうなので、正式に公開
+ 2005/08/31 ADD XMail フィルタ用の返却値 5, 4 (スプールする,しない）を選択できるように
+              -P オプションを追加
 
 ■ xmspamc.exe
 
-SpamAssassin Client for XMailServer Filter version 3.0.2
+SpamAssassin Client Filter ver 0.21 for XMailServer
+  based on spamc ver 3.0.2 mixed spamc ver 3.0.4
 
 Usage: xmspamc [@@FILE] [tempdir] [options]
 
@@ -65,6 +89,8 @@ Options:
                       [default accept mail]
   -h                  Print this help message and exit.
   -V                  Print xmspamc version and exit.
+  -P spool            Spool specification. 0 = without spool, 1 = spool
+                      [default: 0]
 
 ===========================================================================
   @@FILE は、XMailServerFilter のパラメタです。
@@ -99,18 +125,23 @@ http://wiki.apache.org/spamassassin/SpamdOnWindows
 
   Perl のインストール先が c:\usr\perl だと仮定して作成してあります
 ので、他のフォルダにインストールした場合は、spamd.bat 内にある
-c:\usr\perl を違うフォルダに置換して下さい。
+c:/usr/perl を違うフォルダに置換して下さい。
 
-SpamAssassin-3.0.2 を windows 環境で使用する場合は
+  spamd.bat は、SpamAssassin のデーモンなので、常に実行させておく
+必要があります。
+
+SpamAssassin を windows 環境で使用する場合は
 http://wiki.apache.org/spamassassin/InstallingOnWindows
 を参考にインストールしてみてください。
+http://www.hunes.co.jp/oki/xmail_spamc/InstallSpamAssassinOnWin32jp.html
+に、同様の解説を載せていますので、そちらも参考にしてみてください。
 
 ■ spamassassin.tab
-  利用する場合の雛形です。中身の Path_to_spamc は、
-xmspamc.exe を置いたフォルダへの絶対パス（フルパス）に
+  XMailServer で、xmspamc.exe というフィルタを利用する場合の雛形です。
+中身の Path_to_spamc は、xmspamc.exe を置いたフォルダへの絶対パス（フルパス）に
 置き換えて利用してください。
 
-TEMPDIR は、テンポラリ用のフォルダに置き換えてください。
+Path_to_tempdir は、テンポラリ用のフォルダに置き換えてください。
 テンポラリフォルダの最後に '\' マークは不要です。
 
   xmail/MailRoot/filters.in.tab に

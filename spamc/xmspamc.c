@@ -16,9 +16,10 @@
  */
 
 /*
- *  XMSpamc : SpamC for XMailServer Filter
- *    2005/01/11  OKI Miyuki   blade2001jp@ybb.ne.jp
+ *  XMSpamc : SpamC for XMailServer Filter ver 0.21
+ *    2005/08/31  OKI Miyuki   blade2001jp@ybb.ne.jp
  *  Based on SpamAssassin 3.0.2 spamc.c
+ *   Mixed SpamAssassin 3.0.4 spamc
  */
 
 #include "config.h"
@@ -113,19 +114,22 @@ int out_fd = -1;
 /* spam score: deny and remove mail */
 static float deny_score = 11.0;
 
-
 /* XMailServer Filter's exit code */
-#define XMAIL_FILTER_STOP				16	/* unload filter command = this program */
-#define XMAIL_FILTER_FAIL				0		/* not touch */
-#define XMAIL_FILTER_OK					0
-#define XMAIL_FILTER_REJECT			5		/* reject spool file mail */
-#define XMAIL_FILTER_REJECTMSG	6
-#define XMAIL_FILTER_MODIFY			7		/* change spool file mail */
-
+#define XMAIL_FILTER_STOP							16	/* unload filter command = this program */
+#define XMAIL_FILTER_FAIL							0		/* not touch */
+#define XMAIL_FILTER_OK								0
+#define XMAIL_FILTER_REJECT_NOSPOOL		4		/* reject spool file mail without pending */
+#define XMAIL_FILTER_REJECT_SPOOL			5		/* reject spool file mail with pending */
+#define XMAIL_FILTER_REJECT_RESPONSE	6		/* reject and response spool file mail */
+#define XMAIL_FILTER_MODIFY						7		/* change spool file mail */
+#define XMAIL_FILTER_REJECT		XMAIL_FILTER_REJECT_NOSPOOL
+/* reject result code for xmail server */
+int reject_result_code = XMAIL_FILTER_REJECT_NOSPOOL;
 
 
 void print_version(void) {
-	printf("%s version %s\n", "SpamAssassin Client for XMailServer Filter", VERSION_STRING);
+	printf("SpamAssassin Client Filter ver 0.21 for XMailServer\n");
+	printf("  based on spamc ver 3.0.2 mixed spamc ver 3.0.4\n");
 #ifdef SPAMC_SSL
 	printf("  compiled with SSL support (%s)\n", OPENSSL_VERSION_TEXT);
 #endif
@@ -169,6 +173,8 @@ void print_usage(void)
 			"                      [default accept mail]\n");
 	usg("  -h                  Print this help message and exit.\n");
 	usg("  -V                  Print xmspamc version and exit.\n");
+	usg("  -P spool            Spool specification. 0 = without spool, 1 = spool\n"
+	    "                      [default: 0]\n");
 	usg("\n");
 }
 
@@ -182,9 +188,9 @@ void read_args(
 )
 {
 #ifndef _WIN32
-	const char *opts = "-d:Hp:SU:t:s:u:xlD:bhV";
+	const char *opts = "-d:Hp:SU:t:s:u:xlD:bhVP:";
 #else
-	const char *opts = "-d:Hp:St:s:u:xlD:bhV";
+	const char *opts = "-d:Hp:St:s:u:xlD:bhVP:";
 #endif
 	int opt;
 
@@ -242,6 +248,9 @@ void read_args(
 				break;
 			}
 #endif
+			case 'P': {
+				if( atoi(optarg) )	reject_result_code = XMAIL_FILTER_REJECT_SPOOL;
+			}
 			case 'x': { flags &= (~SPAMC_SAFE_FALLBACK); break; }
 			case '?':
 			case ':': {
@@ -290,6 +299,21 @@ int get_input_fd(int *fd) {
 	return EX_OK;
 }
 
+/* reads xmail management 6 lines and into outputs */
+int rw_xmail_management_lines( int ifd, int ofd ) {
+	int lines	=	6;
+	int c	=	0;
+	while( lines ) {
+		if( read( ifd, &c, 1 ) < 0 )	return EX_OSFILE;
+		if( write( ofd, &c, 1 ) < 0 )	return EX_OSFILE;
+		if( c == 0x0A )	--lines;
+#ifdef _DEBUG
+		printf( "%c", c );
+#endif
+	}
+	return EX_OK;
+}
+
 /* close file */
 void close_fd(int *fd) {
 	if(	*fd != -1 ) {
@@ -301,7 +325,7 @@ void close_fd(int *fd) {
 /* open output text file (temporary) */
 int get_output_fd(int *fd) {
 	if( *fd == -1 ) {
-		*fd = open( temp_text, _O_CREAT | _O_BINARY | _O_WRONLY );
+		*fd = open( temp_text, _O_CREAT | _O_BINARY | _O_RDWR );
 		if(*fd == -1) {
 		    libspamc_log(flags, LOG_ERR, "fail to create: %m");
 			return EX_CANTCREAT;
@@ -365,6 +389,33 @@ void transport_cleanup(void) {
 #endif
 }
 
+/* check modified spool mail file's last two bytes
+ *  equals { 0x0D, 0x0A },
+ *  and convert { 0x0A } to { 0x0D, 0x0A } if not.
+ * attention: param fd is file handle that opend "wt".
+ */
+void convert_last_LF_CRLF( int fd ) {
+	char wr[ 4 ] = { 0x0D, 0x0A, 0x0D, 0x0A };
+	char buf[ 3 ];
+	long pos = lseek( fd, -3, SEEK_END );
+	if( pos < 0 )	return;
+	pos	=	read( fd, &buf[0], 3 );
+	if( pos != 3 )	return;
+	if( buf[1] != 0x0D && buf[2] == 0x0A ) {
+		if( buf[0] != 0x0D && buf[1] == 0x0A ) {
+			pos	=	lseek( fd, -2, SEEK_END );
+			if( pos < 0 )	return;
+			write( fd, wr, 4 );
+		} else {
+			pos	=	lseek( fd, -1, SEEK_END );
+			if( pos < 0 )	return;
+			write( fd, wr, 2 );
+		}
+	} else {
+		write( fd, wr, 2 );
+	}
+}
+
 void cleanup(void) {
 	message_cleanup( &m );
 	close_fd( &in_fd );
@@ -421,6 +472,15 @@ int main(int argc, char *argv[]) {
 		return XMAIL_FILTER_FAIL;
 	}
 
+	/* open temporary text */
+	if( EX_OK != get_output_fd(&out_fd) ) {
+		return XMAIL_FILTER_FAIL;
+	}
+
+	if( EX_OK != rw_xmail_management_lines( in_fd, out_fd ) ) {
+		return XMAIL_FILTER_FAIL;
+	}
+
 	/* read input text message */
 	ret = message_read( in_fd, flags, &m );
 	if( EX_OK != ret ) {
@@ -449,14 +509,10 @@ int main(int argc, char *argv[]) {
 		return XMAIL_FILTER_FAIL;
 	}
 
-	/* open temporary text */
-	if( EX_OK != get_output_fd(&out_fd) ) {
-		return XMAIL_FILTER_FAIL;
-	}
-
 	/* write temporary text */
 	if( message_write(out_fd, &m) >= 0 ) {
 		close_fd( &in_fd );
+		convert_last_LF_CRLF( out_fd );
 		close_fd( &out_fd );
 		switch( m.is_spam ) {
 			case EX_ISSPAM: {
@@ -464,26 +520,22 @@ int main(int argc, char *argv[]) {
 #ifdef _DEBUG
 					printf( "reject : %s\n", input_text );
 #endif
-					return XMAIL_FILTER_REJECT;
+					return reject_result_code;
 				}
-				/*
-					TODO: compare first 6 line between input_text and temp_text
-						and if different goto EX_TOOBIG; 
-				*/
 				/* EX_TOOBIG and EX_ISSPAM */
 				if( ret == EX_TOOBIG ) {
 					/* Can't MODIFY because temp_text is part of original message */
 #ifdef _DEBUG
 					printf( "%.3lf/%.3lf\n", m.score, m.threshold );
 #endif
-					return XMAIL_FILTER_REJECT;
+					return reject_result_code;
 				} else {
 					remove( input_text );
 					rename( temp_text, input_text );
 #ifdef _DEBUG
 					printf( "modify : %s\n", input_text );
 #endif
-					return XMAIL_FILTER_MODIFY;
+					return reject_result_code;
 				}
 			}
 			case EX_NOTSPAM: {

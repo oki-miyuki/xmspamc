@@ -1,6 +1,7 @@
-{@rem = '--*-Perl-*-- 
+@rem = '--*-Perl-*-- 
 @echo off
 SET LANG=en_US
+:SET RES_NAMESERVERS=
 if "%OS%" == "Windows_NT" goto WinNT
 perl -x -S "%0" %1 %2 %3 %4 %5 %6 %7 %8 %9
 goto endofperl
@@ -30,11 +31,11 @@ goto endofperl
 # limitations under the License.
 # </@LICENSE>
 
-my $PREFIX          = 'c:/perl/site';             # substituted at 'make' time
-my $DEF_RULES_DIR   = 'c:/perl/site/share/spamassassin';      # substituted at 'make' time
-my $LOCAL_RULES_DIR = 'c:/perl/site/etc/mail/spamassassin';    # substituted at 'make' time
+my $PREFIX          = 'c:/usr/perl/site';             # substituted at 'make' time
+my $DEF_RULES_DIR   = 'c:/usr/perl/site/share/spamassassin';      # substituted at 'make' time
+my $LOCAL_RULES_DIR = 'c:/usr/perl/site/etc/mail/spamassassin';    # substituted at 'make' time
 
-use lib 'c:/perl/site/lib';                   # substituted at 'make' time
+use lib 'c:/usr/perl/site/lib';                   # substituted at 'make' time
 
 BEGIN {    # added by jm for use inside the distro
   if ( -e '../blib/lib/Mail/SpamAssassin.pm' ) {
