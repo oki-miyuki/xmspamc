@@ -38,11 +38,13 @@ ver 0.2
  2005/08/24 FIX modify last few bytes of LF code to CR+LF code.
                 (i don't know why. but some mailer causes a timeout error)
  2005/08/26 stable release
+ver 0.21
  2005/08/31 ADD -P option. 
-
+var 0.22
+ 2005/11/01 FIX 0.21 bug (no effects -D option. always rejected)
 Å° xmspamc.exe
 
-SpamAssassin Client Filter ver 0.21 for XMailServer
+SpamAssassin Client Filter ver 0.22 for XMailServer
   based on spamc 3.0.2 mixed spamc 3.0.4
 
 Usage: xmspamc [@@FILE] [tempdir] [options]

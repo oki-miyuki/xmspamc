@@ -58,12 +58,15 @@ ver 0.2
               改行を CR+LF の組の改行に書き換え処理を追加（そうしないと、
               メーラがタイムアウトを引き起こす現象が発生したため）
  2005/08/26 Release 安定して稼動できそうなので、正式に公開
+ver 0.21
  2005/08/31 ADD XMail フィルタ用の返却値 5, 4 (スプールする,しない）を選択できるように
               -P オプションを追加
+ver 0.22
+ 2005/11/01 FIX 0.21 で混入したバグ（SPAMと判定された場合は、常に受信拒否状態になっていた）
 
 ■ xmspamc.exe
 
-SpamAssassin Client Filter ver 0.21 for XMailServer
+SpamAssassin Client Filter ver 0.22 for XMailServer
   based on spamc ver 3.0.2 mixed spamc ver 3.0.4
 
 Usage: xmspamc [@@FILE] [tempdir] [options]

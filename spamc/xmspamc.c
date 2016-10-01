@@ -128,7 +128,7 @@ int reject_result_code = XMAIL_FILTER_REJECT_NOSPOOL;
 
 
 void print_version(void) {
-	printf("SpamAssassin Client Filter ver 0.21 for XMailServer\n");
+	printf("SpamAssassin Client Filter ver 0.22 for XMailServer\n");
 	printf("  based on spamc ver 3.0.2 mixed spamc ver 3.0.4\n");
 #ifdef SPAMC_SSL
 	printf("  compiled with SSL support (%s)\n", OPENSSL_VERSION_TEXT);
@@ -535,7 +535,7 @@ int main(int argc, char *argv[]) {
 #ifdef _DEBUG
 					printf( "modify : %s\n", input_text );
 #endif
-					return reject_result_code;
+					return XMAIL_FILTER_MODIFY;
 				}
 			}
 			case EX_NOTSPAM: {
